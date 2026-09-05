@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import API_URL from "../api";
 
 function CreateListing() {
   const navigate = useNavigate();
@@ -94,7 +95,7 @@ function CreateListing() {
       setLoading(true);
 
       const response = await fetch(
-        "http://localhost:5000/api/properties",
+        `${API_URL}/api/properties`,
         {
           method: "POST",
           headers: {

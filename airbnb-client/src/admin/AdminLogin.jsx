@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import API_URL from "../api";
 
 function AdminLogin() {
   const navigate = useNavigate();
@@ -14,7 +15,7 @@ function AdminLogin() {
 
     setError("");
 
-    if (!email.trim() || !password.trim()) {
+    if (!email || !password) {
       setError("Please enter your email and password.");
       return;
     }
@@ -22,19 +23,16 @@ function AdminLogin() {
     try {
       setLoading(true);
 
-      const response = await fetch(
-        "http://localhost:5000/api/users/login",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email,
-            password,
-          }),
-        }
-      );
+      const response = await fetch(`${API_URL}/api/users/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
 
       const data = await response.json();
 
@@ -43,8 +41,8 @@ function AdminLogin() {
         return;
       }
 
-      localStorage.setItem("airbnbToken", data.token);
-      localStorage.setItem("airbnbUser", JSON.stringify(data.user));
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
 
       navigate("/admin");
     } catch (error) {
@@ -56,41 +54,40 @@ function AdminLogin() {
   };
 
   return (
-    <div className="admin-login-page">
-      <div className="admin-login-card">
-        <div className="admin-login-logo">airbnb</div>
+    <div>
+      <h1>Admin Login</h1>
 
-        <h1>Welcome back</h1>
-        <p>Log in to your Airbnb admin account.</p>
-
-        <form onSubmit={handleLogin}>
-          <label htmlFor="admin-email">Email</label>
+      <form onSubmit={handleLogin}>
+        <div>
+          <label htmlFor="email">Email</label>
 
           <input
-            id="admin-email"
+            id="email"
             type="email"
-            placeholder="Enter your email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
+            placeholder="Enter your email"
           />
+        </div>
 
-          <label htmlFor="admin-password">Password</label>
+        <div>
+          <label htmlFor="password">Password</label>
 
           <input
-            id="admin-password"
+            id="password"
             type="password"
-            placeholder="Enter your password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
+            placeholder="Enter your password"
           />
+        </div>
 
-          {error && <p className="admin-login-error">{error}</p>}
+        {error && <p>{error}</p>}
 
-          <button type="submit" disabled={loading}>
-            {loading ? "Logging in..." : "Log in"}
-          </button>
-        </form>
-      </div>
+        <button type="submit" disabled={loading}>
+          {loading ? "Logging in..." : "Login"}
+        </button>
+      </form>
     </div>
   );
 }

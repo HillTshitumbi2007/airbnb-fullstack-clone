@@ -1,5 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
+import API_URL from "../api";
 
 import {
   Wifi,
@@ -32,7 +33,7 @@ function Details() {
     const fetchProperty = async () => {
       try {
         const response = await fetch(
-          `http://localhost:5000/api/properties/${id}`
+          `${API_URL}/api/properties/${id}`
         );
 
         if (!response.ok) {
@@ -152,7 +153,7 @@ function Details() {
 
     try {
       const response = await fetch(
-        "http://localhost:5000/api/bookings",
+        `${API_URL}/api/bookings`,
         {
           method: "POST",
           headers: {

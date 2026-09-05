@@ -1,5 +1,6 @@
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
+import API_URL from "../api";
 
 function Listings() {
   const { location } = useParams();
@@ -24,7 +25,7 @@ function Listings() {
     const fetchListings = async () => {
       try {
         const response = await fetch(
-          "http://localhost:5000/api/properties"
+          `${API_URL}/api/properties`
         );
 
         if (!response.ok) {

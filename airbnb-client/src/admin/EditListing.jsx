@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import API_URL from "../api";
 
 function EditListing() {
   const { id } = useParams();
@@ -44,7 +45,7 @@ function EditListing() {
     const fetchProperty = async () => {
       try {
         const response = await fetch(
-          `http://localhost:5000/api/properties/${id}`
+          `${API_URL}/api/properties/${id}`
         );
 
         const data = await response.json();
@@ -143,7 +144,7 @@ function EditListing() {
       setSaving(true);
 
       const response = await fetch(
-        `http://localhost:5000/api/properties/${id}`,
+        `${API_URL}/api/properties/${id}`,
         {
           method: "PUT",
           headers: {
