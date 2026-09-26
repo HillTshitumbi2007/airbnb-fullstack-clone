@@ -2,6 +2,12 @@ const mongoose = require("mongoose");
 
 const propertySchema = new mongoose.Schema(
   {
+    owner: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
     type: {
       type: String,
       required: true,

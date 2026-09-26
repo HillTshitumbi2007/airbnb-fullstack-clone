@@ -4,11 +4,22 @@ const auth = require("../middleware/auth");
 
 const router = express.Router();
 
-// GET all properties
-// Public route - needed by the Airbnb frontend
+const requireHost = (req, res, next) => {
+  if (req.user?.role !== "host") {
+    return res.status(403).json({
+      message: "Only hosts can manage listings.",
+    });
+  }
+
+  next();
+};
+
+// GET all properties - public.
 router.get("/", async (req, res) => {
   try {
-    const properties = await Property.find();
+    const properties = await Property.find().sort({
+      createdAt: -1,
+    });
 
     res.status(200).json(properties);
   } catch (error) {
@@ -20,8 +31,24 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET one property
-// Public route - needed by the Details page
+// GET current host's listings.
+router.get("/mine", auth, requireHost, async (req, res) => {
+  try {
+    const properties = await Property.find({
+      owner: req.user.id,
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json(properties);
+  } catch (error) {
+    console.error("Get my properties error:", error);
+
+    res.status(500).json({
+      message: "Failed to fetch your listings.",
+    });
+  }
+});
+
+// GET one property - public.
 router.get("/:id", async (req, res) => {
   try {
     const property = await Property.findById(req.params.id);
@@ -42,9 +69,8 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// POST create property
-// Protected route - admin/host only
-router.post("/", auth, async (req, res) => {
+// POST create property - host only.
+router.post("/", auth, requireHost, async (req, res) => {
   try {
     const {
       type,
@@ -65,7 +91,6 @@ router.post("/", auth, async (req, res) => {
       serviceFee,
       occupancyTaxes,
       weeklyDiscount,
-      host,
     } = req.body;
 
     if (
@@ -76,26 +101,20 @@ router.post("/", auth, async (req, res) => {
       bedrooms === undefined ||
       beds === undefined ||
       bathrooms === undefined ||
-      !price ||
+      price === undefined ||
       !image ||
-      !description ||
-      !host
+      !description
     ) {
       return res.status(400).json({
         message: "Please provide all required property fields.",
       });
     }
 
-    if (req.user.role !== "host") {
-      return res.status(403).json({
-        message: "Only hosts can create properties.",
-      });
-    }
-
     const property = await Property.create({
+      owner: req.user.id,
       type,
-      title,
-      location,
+      title: title.trim(),
+      location: location.trim(),
       guests,
       bedrooms,
       beds,
@@ -103,15 +122,15 @@ router.post("/", auth, async (req, res) => {
       rating: rating || 0,
       reviews: reviews || 0,
       price,
-      image,
-      images: images || [image],
+      image: image.trim(),
+      images: images?.length ? images : [image.trim()],
       amenities: amenities || [],
-      description,
+      description: description.trim(),
       cleaningFee: cleaningFee || 0,
       serviceFee: serviceFee || 0,
       occupancyTaxes: occupancyTaxes || 0,
       weeklyDiscount: weeklyDiscount || 0,
-      host,
+      host: req.user.username,
     });
 
     res.status(201).json({
@@ -128,77 +147,115 @@ router.post("/", auth, async (req, res) => {
   }
 });
 
-// PUT update property
-// Protected route - admin/host only
-router.put("/:id", auth, async (req, res) => {
+// Check that the authenticated host owns the listing.
+const checkListingOwner = async (req, res, next) => {
   try {
-    if (req.user.role !== "host") {
-      return res.status(403).json({
-        message: "Only hosts can update properties.",
-      });
-    }
+    const property = await Property.findById(req.params.id);
 
-    const updatedProperty = await Property.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
-
-    if (!updatedProperty) {
+    if (!property) {
       return res.status(404).json({
         message: "Property not found.",
       });
     }
 
-    res.status(200).json({
-      message: "Property updated successfully.",
-      property: updatedProperty,
-    });
-  } catch (error) {
-    console.error("Update property error:", error);
-
-    res.status(400).json({
-      message: "Failed to update property.",
-      error: error.message,
-    });
-  }
-});
-
-// DELETE property
-// Protected route - admin/host only
-router.delete("/:id", auth, async (req, res) => {
-  try {
-    if (req.user.role !== "host") {
+    if (!property.owner || String(property.owner) !== String(req.user.id)) {
       return res.status(403).json({
-        message: "Only hosts can delete properties.",
+        message: "You can only manage listings that belong to your host account.",
       });
     }
 
-    const deletedProperty = await Property.findByIdAndDelete(
-      req.params.id
-    );
-
-    if (!deletedProperty) {
-      return res.status(404).json({
-        message: "Property not found.",
-      });
-    }
-
-    res.status(200).json({
-      message: "Property deleted successfully.",
-      property: deletedProperty,
-    });
+    req.property = property;
+    next();
   } catch (error) {
-    console.error("Delete property error:", error);
-
     res.status(400).json({
-      message: "Failed to delete property.",
-      error: error.message,
+      message: "Invalid property ID.",
     });
   }
-});
+};
+
+// PUT update property - host owner only.
+router.put(
+  "/:id",
+  auth,
+  requireHost,
+  checkListingOwner,
+  async (req, res) => {
+    try {
+      const allowedFields = [
+        "type",
+        "title",
+        "location",
+        "guests",
+        "bedrooms",
+        "beds",
+        "bathrooms",
+        "price",
+        "image",
+        "images",
+        "amenities",
+        "description",
+        "cleaningFee",
+        "serviceFee",
+        "occupancyTaxes",
+        "weeklyDiscount",
+      ];
+
+      const updates = {};
+
+      allowedFields.forEach((field) => {
+        if (req.body[field] !== undefined) {
+          updates[field] = req.body[field];
+        }
+      });
+
+      updates.host = req.user.username;
+
+      const updatedProperty =
+        await Property.findByIdAndUpdate(
+          req.params.id,
+          updates,
+          {
+            new: true,
+            runValidators: true,
+          }
+        );
+
+      res.status(200).json({
+        message: "Property updated successfully.",
+        property: updatedProperty,
+      });
+    } catch (error) {
+      console.error("Update property error:", error);
+
+      res.status(400).json({
+        message: "Failed to update property.",
+        error: error.message,
+      });
+    }
+  }
+);
+
+// DELETE property - host owner only.
+router.delete(
+  "/:id",
+  auth,
+  requireHost,
+  checkListingOwner,
+  async (req, res) => {
+    try {
+      await Property.findByIdAndDelete(req.params.id);
+
+      res.status(200).json({
+        message: "Property deleted successfully.",
+      });
+    } catch (error) {
+      console.error("Delete property error:", error);
+
+      res.status(400).json({
+        message: "Failed to delete property.",
+      });
+    }
+  }
+);
 
 module.exports = router;

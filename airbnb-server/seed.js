@@ -119,7 +119,17 @@ const seedDatabase = async () => {
 
     await Property.deleteMany();
 
-    await Property.insertMany(properties);
+    // If the demo host exists, make the seeded listings manageable from
+    // that host's dashboard. Otherwise they remain public demo listings.
+    const User = require("./models/User");
+    const demoHost = await User.findOne({ email: "admin@airbnbclone.com", role: "host" });
+
+    const seededProperties = properties.map((property) => ({
+      ...property,
+      owner: demoHost?._id || null,
+    }));
+
+    await Property.insertMany(seededProperties);
 
     console.log("Properties added successfully!");
 
