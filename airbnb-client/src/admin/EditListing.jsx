@@ -38,7 +38,7 @@ function EditListing() {
     );
 
     if (!token || !user || user.role !== "host") {
-      navigate("/admin/login");
+      navigate("/login");
       return;
     }
 
@@ -124,7 +124,7 @@ function EditListing() {
     const token = localStorage.getItem("airbnbToken");
 
     if (!token) {
-      navigate("/admin/login");
+      navigate("/login");
       return;
     }
 
@@ -172,7 +172,7 @@ function EditListing() {
               Number(formData.serviceFee) || 0,
             occupancyTaxes:
               Number(formData.occupancyTaxes) || 0,
-            host: formData.host.trim() || "Admin",
+            host: formData.host.trim(),
           }),
         }
       );
@@ -555,6 +555,7 @@ function EditListing() {
                   type="text"
                   value={formData.host}
                   onChange={handleChange}
+                  readOnly
                 />
               </div>
             </div>

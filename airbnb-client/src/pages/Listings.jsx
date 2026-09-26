@@ -1,6 +1,7 @@
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import API_URL from "../api";
+import Header from "../components/Header";
 
 function Listings() {
   const { location } = useParams();
@@ -55,15 +56,31 @@ function Listings() {
   }, [formattedLocation, requestedGuests]);
 
   if (loading) {
-    return <p>Loading listings...</p>;
+    return (
+      <>
+        <Header />
+        <div className="listings-container">
+          <p>Loading listings...</p>
+        </div>
+      </>
+    );
   }
 
   if (error) {
-    return <p>{error}</p>;
+    return (
+      <>
+        <Header />
+        <div className="listings-container">
+          <p>{error}</p>
+        </div>
+      </>
+    );
   }
 
   return (
-    <div>
+    <>
+      <Header />
+
       <div className="listings-container">
         <h1>Stays in {displayLocation}</h1>
 
@@ -78,9 +95,7 @@ function Listings() {
 
         <div className="listings-list">
           {listings.length === 0 ? (
-            <p>
-              No properties found for your search.
-            </p>
+            <p>No properties found for your search.</p>
           ) : (
             listings.map((listing) => (
               <Link
@@ -107,7 +122,7 @@ function Listings() {
                     </p>
 
                     <p className="listing-amenities">
-                      {listing.amenities.join(" · ")}
+                      {listing.amenities?.join(" · ")}
                     </p>
                   </div>
 
@@ -133,7 +148,7 @@ function Listings() {
           )}
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

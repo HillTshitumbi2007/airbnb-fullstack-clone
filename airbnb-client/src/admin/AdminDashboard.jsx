@@ -4,39 +4,53 @@ import API_URL from "../api";
 
 function AdminDashboard() {
   const navigate = useNavigate();
-
   const [properties, setProperties] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("airbnbToken");
+  const user = JSON.parse(
+    localStorage.getItem("airbnbUser") || "null"
+  );
 
   useEffect(() => {
-    if (!token) {
-      navigate("/admin/login");
+    if (!token || !user || user.role !== "host") {
+      navigate("/login");
       return;
     }
 
     const loadDashboard = async () => {
       try {
-        const [propertiesResponse, bookingsResponse] = await Promise.all([
-          fetch(`${API_URL}/api/properties`),
-          fetch(`${API_URL}/api/bookings`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }),
-        ]);
+        const [propertiesResponse, bookingsResponse] =
+          await Promise.all([
+            fetch(`${API_URL}/api/properties/mine`, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }),
+            fetch(`${API_URL}/api/bookings`, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }),
+          ]);
 
-        if (propertiesResponse.status === 401 || bookingsResponse.status === 401) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-          navigate("/admin/login");
+        if (
+          propertiesResponse.status === 401 ||
+          propertiesResponse.status === 403 ||
+          bookingsResponse.status === 401 ||
+          bookingsResponse.status === 403
+        ) {
+          localStorage.removeItem("airbnbToken");
+          localStorage.removeItem("airbnbUser");
+          navigate("/login");
           return;
         }
 
-        const propertiesData = await propertiesResponse.json();
-        const bookingsData = await bookingsResponse.json();
+        const propertiesData =
+          await propertiesResponse.json();
+        const bookingsData =
+          await bookingsResponse.json();
 
         setProperties(propertiesData);
         setBookings(bookingsData);
@@ -48,16 +62,14 @@ function AdminDashboard() {
     };
 
     loadDashboard();
-  }, [navigate, token]);
+  }, [navigate, token, user?.role]);
 
   const handleDeleteProperty = async (propertyId) => {
     const confirmed = window.confirm(
-      "Are you sure you want to delete this property?"
+      "Are you sure you want to delete this listing?"
     );
 
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     try {
       const response = await fetch(
@@ -73,158 +85,217 @@ function AdminDashboard() {
       const data = await response.json();
 
       if (!response.ok) {
-        alert(data.message || "Failed to delete property.");
+        alert(data.message || "Failed to delete listing.");
         return;
       }
 
-      setProperties((currentProperties) =>
-        currentProperties.filter(
-          (property) => property._id !== propertyId
-        )
+      setProperties((current) =>
+        current.filter((item) => item._id !== propertyId)
       );
 
-      alert("Property deleted successfully.");
+      alert("Listing deleted successfully.");
     } catch (error) {
-      console.error("Delete property error:", error);
-      alert("Something went wrong while deleting the property.");
-    }
-  };
-
-  const handleDeleteBooking = async (bookingId) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this reservation?"
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `${API_URL}/api/bookings/${bookingId}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        alert(data.message || "Failed to delete reservation.");
-        return;
-      }
-
-      setBookings((currentBookings) =>
-        currentBookings.filter(
-          (booking) => booking._id !== bookingId
-        )
-      );
-
-      alert("Reservation deleted successfully.");
-    } catch (error) {
-      console.error("Delete booking error:", error);
-      alert("Something went wrong while deleting the reservation.");
+      console.error("Delete listing error:", error);
+      alert("Something went wrong while deleting the listing.");
     }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    navigate("/admin/login");
+    localStorage.removeItem("airbnbToken");
+    localStorage.removeItem("airbnbUser");
+    window.dispatchEvent(new Event("airbnb-auth-changed"));
+    navigate("/");
   };
 
   if (loading) {
-    return <p>Loading dashboard...</p>;
+    return (
+      <div className="dashboard-loading">
+        Loading host dashboard...
+      </div>
+    );
   }
 
   return (
-    <div>
-      <header>
-        <h1>Admin Dashboard</h1>
+    <div className="admin-dashboard">
+      <header className="admin-header">
+        <div>
+          <button
+            className="admin-logo"
+            onClick={() => navigate("/")}
+          >
+            airbnb
+          </button>
 
-        <button onClick={handleLogout}>
-          Logout
-        </button>
+          <p className="dashboard-subtitle">
+            Host dashboard · Welcome, {user?.username}
+          </p>
+        </div>
+
+        <div className="admin-header-actions">
+          <button
+            className="dashboard-home-button"
+            onClick={() => navigate("/")}
+          >
+            View Airbnb
+          </button>
+
+          <button
+            className="dashboard-logout-button"
+            onClick={handleLogout}
+          >
+            Log out
+          </button>
+        </div>
       </header>
 
-      <main>
-        <section>
-          <h2>Properties</h2>
+      <main className="admin-main">
+        <div className="admin-heading">
+          <div>
+            <h1>Manage your listings</h1>
+            <p>
+              Create, update and delete the properties you host.
+            </p>
+          </div>
+
+          <button
+            className="create-listing-button"
+            onClick={() => navigate("/admin/create-listing")}
+          >
+            + Create listing
+          </button>
+        </div>
+
+        <section className="admin-section">
+          <div className="dashboard-stat-grid">
+            <div className="dashboard-stat">
+              <span>Your listings</span>
+              <strong>{properties.length}</strong>
+            </div>
+
+            <div className="dashboard-stat">
+              <span>Reservations</span>
+              <strong>{bookings.length}</strong>
+            </div>
+          </div>
+
+          <h2>Your listings</h2>
 
           {properties.length === 0 ? (
-            <p>No properties found.</p>
+            <div className="empty-dashboard">
+              <h3>You haven't created a listing yet.</h3>
+              <p>
+                Add your first property so guests can discover it.
+              </p>
+              <button
+                className="create-listing-button"
+                onClick={() =>
+                  navigate("/admin/create-listing")
+                }
+              >
+                Create your first listing
+              </button>
+            </div>
           ) : (
-            properties.map((property) => (
-              <div key={property._id}>
-                <h3>{property.title}</h3>
-
-                <p>{property.location}</p>
-                <p>R{property.price} per night</p>
-
-                <button
-                  onClick={() =>
-                    navigate(`/admin/edit-listing/${property._id}`)
-                  }
+            <div className="admin-property-grid">
+              {properties.map((property) => (
+                <article
+                  key={property._id}
+                  className="admin-property-card"
                 >
-                  Edit
-                </button>
+                  <img
+                    src={property.image}
+                    alt={property.title}
+                  />
 
-                <button
-                  onClick={() =>
-                    handleDeleteProperty(property._id)
-                  }
-                >
-                  Delete
-                </button>
-              </div>
-            ))
+                  <div className="admin-property-card-body">
+                    <span className="admin-property-type">
+                      {property.type}
+                    </span>
+
+                    <h3>{property.title}</h3>
+                    <p>{property.location}</p>
+
+                    <strong>
+                      R{property.price.toLocaleString()} / night
+                    </strong>
+
+                    <div className="admin-card-actions">
+                      <button
+                        onClick={() =>
+                          navigate(
+                            `/admin/edit-listing/${property._id}`
+                          )
+                        }
+                      >
+                        Edit
+                      </button>
+
+                      <button
+                        className="delete-action"
+                        onClick={() =>
+                          handleDeleteProperty(property._id)
+                        }
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
           )}
         </section>
 
-        <section>
+        <section className="admin-section dashboard-reservations">
           <h2>Reservations</h2>
 
           {bookings.length === 0 ? (
-            <p>No reservations found.</p>
+            <div className="empty-dashboard">
+              No reservations for your listings yet.
+            </div>
           ) : (
-            bookings.map((booking) => (
-              <div key={booking._id}>
-                <h3>
-                  {booking.property?.title || "Property"}
-                </h3>
-
-                <p>
-                  Check-in:{" "}
-                  {new Date(booking.checkIn).toLocaleDateString()}
-                </p>
-
-                <p>
-                  Check-out:{" "}
-                  {new Date(booking.checkOut).toLocaleDateString()}
-                </p>
-
-                <p>Guests: {booking.guests}</p>
-
-                <p>Total: R{booking.total}</p>
-
-                <button
-                  onClick={() =>
-                    handleDeleteBooking(booking._id)
-                  }
+            <div className="reservation-list">
+              {bookings.map((booking) => (
+                <div
+                  key={booking._id}
+                  className="reservation-card"
                 >
-                  Delete Reservation
-                </button>
-              </div>
-            ))
+                  <div>
+                    <h3>
+                      {booking.property?.title || "Property"}
+                    </h3>
+
+                    <p>
+                      Guest:{" "}
+                      {booking.guest?.username || "Guest"}
+                    </p>
+
+                    <p>
+                      {new Date(
+                        booking.checkIn
+                      ).toLocaleDateString()}{" "}
+                      →{" "}
+                      {new Date(
+                        booking.checkOut
+                      ).toLocaleDateString()}
+                    </p>
+
+                    <p>
+                      {booking.guests}{" "}
+                      {booking.guests === 1
+                        ? "guest"
+                        : "guests"}
+                    </p>
+                  </div>
+
+                  <strong>
+                    R{Number(booking.total).toLocaleString()}
+                  </strong>
+                </div>
+              ))}
+            </div>
           )}
         </section>
-
-        <button onClick={() => navigate("/admin/create-listing")}>
-          Create New Listing
-        </button>
       </main>
     </div>
   );

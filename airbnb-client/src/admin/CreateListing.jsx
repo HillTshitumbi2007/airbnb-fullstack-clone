@@ -5,6 +5,10 @@ import API_URL from "../api";
 function CreateListing() {
   const navigate = useNavigate();
 
+  const currentUser = JSON.parse(
+    localStorage.getItem("airbnbUser") || "null"
+  );
+
   const [formData, setFormData] = useState({
     type: "Entire apartment",
     title: "",
@@ -22,7 +26,7 @@ function CreateListing() {
     cleaningFee: "",
     serviceFee: "",
     occupancyTaxes: "",
-    host: "Admin",
+    host: currentUser?.username || "",
   });
 
   const [error, setError] = useState("");
@@ -36,7 +40,7 @@ function CreateListing() {
     );
 
     if (!token || !user || user.role !== "host") {
-      navigate("/admin/login");
+      navigate("/login");
     }
   }, [navigate]);
 
@@ -75,7 +79,7 @@ function CreateListing() {
     const token = localStorage.getItem("airbnbToken");
 
     if (!token) {
-      navigate("/admin/login");
+      navigate("/login");
       return;
     }
 
@@ -130,7 +134,7 @@ function CreateListing() {
             occupancyTaxes:
               Number(formData.occupancyTaxes) || 0,
 
-            host: formData.host.trim() || "Admin",
+            host: formData.host.trim(),
 
             rating: 0,
             reviews: 0,
@@ -502,6 +506,7 @@ function CreateListing() {
                   type="text"
                   value={formData.host}
                   onChange={handleChange}
+                  readOnly
                 />
               </div>
             </div>
